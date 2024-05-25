@@ -1,0 +1,197 @@
+# Default values for myai-communication-service.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+secrets:
+  - name: acrpassword
+  
+replicaCount: 1
+serviceName: demo-service
+image:
+  repository: registry.k8s.io/e2e-test-images/busybox
+  pullPolicy: "IfNotPresent"
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "1.29-4"
+
+extraLabels:
+  app-name: "demo-service"
+  environment: "dev01"
+  tier: "api"
+  azure.workload.identity/use: "true" # The workload identity for the access the azure resouces connection (keyvalut and database) have added in service account for the client id, Service account attached in deployment labels and pod lables
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+#livenessProbe and readinessProbe
+livenessProbe:
+  enabled: false
+  path: /actuator/health
+  port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 30
+
+readinessProbe:
+  enabled: false
+  path: /actuator/health
+  port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+
+envs:
+  keyvault-url: "https://kv-ai-dt-qa-myaik8s-001.vault.azure.net/"
+  eip-domain-url: "https://apigwtest.airindia.com"
+  
+secretproviderclass:
+  clientID: "08a8621c-fd50-4adb-857b-d6e7cfe8149e"
+  keyvaultName: "kv-ai-dt-qa-myaik8s-001"
+  tenantId: "41591cc6-574f-45d5-819b-9a4773330aec"
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: false
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: false
+  # Annotations to add to the service account
+  annotations:
+    azure.workload.identity/client-id: "xxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"  # The name of the service account to use, its application leval if need to add sprate clinet id we can use this values
+  name: myaik8s-qa-sa-001  # namespace leval service account name
+
+podAnnotations: {}
+
+podLabels:
+  azure.workload.identity/use: "true" # The workload identity for the access the azure resouces connection (keyvalut and database) have added in service account for the client id, Service account attached in deployment labels and pod lables
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80          # Service Port
+  targetPort: 8080  # Application Port
+
+ingress:
+  enabled: false
+  className: "nginx"   #That all need to keep this value unchanged as this is what decides which ingress controller to be used.
+  annotations: 
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/x-forwarded-prefix: /myai-cms  # Path name based on application name changes  
+  hosts:
+    - host: myai-dev-int-aks.privatelink.centralindia.azmk8s.io
+      serviceName: myai-communication-service
+      servicePort: 80
+      paths:
+        - path: /myai-cms(/|$)(.*)
+          pathType: ImplementationSpecific
+
+
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# #Sample application resources
+# resources: 
+# limits:
+#   memory: 200Mi
+#   cpu: 300m
+# requests:
+#   memory: 100Mi
+#   cpu: 100m
+
+# #Node application resources
+# resources:
+#   requests:
+#     memory: "128Mi"  # Request 128Mi of memory
+#     cpu: "250m"      # Request 250 milliCPU (0.25 CPU)
+#   limits:
+#     memory: "256Mi"  # Limit to 256Mi of memory
+#     cpu: "500m"      # Limit to 500 milliCPU (0.5 CPU)
+
+# #Java appliacation resources
+resources:
+  requests:
+    memory: "512Mi"  # Request 512MB of memory
+    cpu: "500m"      # Request 500 milliCPU (0.5 CPU)
+  limits:
+    memory: "1Gi"    # Limit to 1GB of memory
+    cpu: "1"         # Limit to 1 CPU core
+
+# #Python appliacation resources 
+# resources:
+#   requests:
+#     memory: "256Mi"  # Request 256MB of memory
+#     cpu: "250m"      # Request 250 milliCPU (0.25 CPU cores)
+#   limits:
+#     memory: "512Mi"  # Limit to 512MB of memory
+#     cpu: "500m"      # Limit to 500 milliCPU (0.5 CPU cores)
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+# # taint & tolerations
+# tolerations:
+# - effect: NoSchedule
+#   operator: Exists
+
+# Nodeaffinity
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: agentpool
+              operator: In
+              values:
+                - myailxusrpl1
+
+# #Podaffinity
+# affinity:
+#   podAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#     - labelSelector:
+#         matchExpressions:
+#         - key: node
+#           operator: In
+#           values:
+#           - web
+#       topologyKey: "kubernetes.io/hostname"
+
+# #PodAntiaffinity
+# affinity:
+#   podAntiAffinity:
+#     requiredDuringSchedulingIgnoredDuringExecution:
+#     - labelSelector:
+#         matchExpressions:
+#         - key: node
+#           operator: In
+#           values:
+#           - web
+#       topologyKey: "kubernetes.io/hostname"
